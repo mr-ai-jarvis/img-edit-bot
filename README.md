@@ -1,37 +1,25 @@
-# 🖼️ Img Edit Bot — AI Image Editor
+# 🖼️ Img Edit Bot
 
-Telegram-бот для редактирования изображений с помощью AI. Бесплатно, через Hugging Face InstructPix2Pix.
+Telegram-бот для обработки изображений. Отправляешь фото — пишешь, что изменить — получаешь результат.
 
-## Возможности
+## Как работает
 
-- 🖼 Отправляешь изображение → бот спрашивает, что изменить
-- ✏️ Описываешь изменение текстом → бот редактирует
-- 🎨 Получаешь результат
+1. 📸 Отправляешь фотографию
+2. ✏️ Описываешь, что хочешь изменить
+3. 🎨 Получаешь результат
 
-## Бесплатные AI API
+## Для разработчика
 
-### Hugging Face Inference API (основной)
-- Бесплатный токен, без кредитной карты
-- Модель: `timbrooks/instruct-pix2pix`
-- Лимит: ~30 000 запросов/месяц бесплатно
-
-**Как получить:**
-1. Регистрируешься на [huggingface.co](https://huggingface.co/join)
-2. Идёшь в Settings → Access Tokens → **New token**
-3. Выбираешь роль **read**
-4. Копируешь токен в `HF_TOKEN`
-
-### Pollinations.ai (резервный, без ключа)
-- Полностью бесплатный, не требует API ключа
-- Генерирует изображения по текстовому описанию
-
-## Деплой на Railway
-
-[![Deploy on Railway](https://railway.app/button.svg)](https://railway.app/template/...)
-
-## Переменные окружения
+### Переменные окружения
 
 | Переменная | Описание |
 |-----------|----------|
 | `BOT_TOKEN` | Токен Telegram бота ([@BotFather](https://t.me/BotFather)) |
-| `HF_TOKEN` | Токен Hugging Face ([huggingface.co/settings/tokens](https://huggingface.co/settings/tokens)) |
+| `HF_TOKEN` | Токен для сервиса обработки ([huggingface.co/settings/tokens](https://huggingface.co/settings/tokens)) |
+
+### Деплой на Railway
+
+1. Форкни репозиторий
+2. Подключи к Railway
+3. Добавь переменные окружения
+4. Готово 🚀

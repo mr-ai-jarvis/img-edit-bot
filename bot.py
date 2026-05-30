@@ -1,6 +1,6 @@
 """
 Img Edit Bot — главный entry point.
-Telegram-бот для редактирования изображений через AI.
+Telegram-бот для обработки изображений.
 """
 
 import os
@@ -13,10 +13,7 @@ from telegram.ext import (
 )
 
 from src.handlers.start import start_command, cancel
-from src.handlers.edit import (
-    receive_image, receive_prompt, handle_result,
-    PHOTO, PROMPT,
-)
+from src.handlers.edit import receive_image, receive_prompt, PHOTO, PROMPT
 from src.web.health import start_health_server
 
 load_dotenv()
@@ -37,7 +34,6 @@ def main() -> None:
 
     app = Application.builder().token(bot_token).build()
 
-    # ConversationHandler: ожидание фото → ожидание описания
     conv_handler = ConversationHandler(
         entry_points=[MessageHandler(filters.PHOTO, receive_image)],
         states={
