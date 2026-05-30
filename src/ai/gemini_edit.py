@@ -7,6 +7,7 @@ API: POST https://polza.ai/api/v1/media
 """
 
 import os
+import time
 import json
 import logging
 import asyncio
@@ -119,9 +120,9 @@ async def _poll_media_result(
     Docs: https://polza.ai/docs/api-reference/media/status
     Рекомендуемый интервал: 3-5 секунд для изображений.
     """
-    start = asyncio.get_event_loop().time()
+    start = time.monotonic()
     while True:
-        elapsed = asyncio.get_event_loop().time() - start
+        elapsed = time.monotonic() - start
         if elapsed > timeout:
             raise TimeoutError(f"Таймаут {timeout}с при ожидании генерации {media_id}")
 
@@ -135,7 +136,7 @@ async def _poll_media_result(
         result = response.json()
 
         status = result.get("status")
-        logger.debug(f"Polza.ai: poll {media_id} status={status}")
+        logger.info(f"Polza.ai: poll {media_id} status={status}")
 
         if status == "completed":
             return await _get_media_result(client, headers, media_id)
