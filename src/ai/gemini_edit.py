@@ -41,6 +41,9 @@ async def edit_image(image_url: str, prompt: str) -> bytes:
         "input": {
             "prompt": prompt,
             "images": [image_url],
+            "aspect_ratio": "1:1",
+            "image_resolution": "2K",
+            "output_format": "png",
         },
     }
 
