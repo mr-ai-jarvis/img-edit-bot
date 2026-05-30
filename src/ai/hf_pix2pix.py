@@ -19,7 +19,7 @@ import json
 
 logger = logging.getLogger(__name__)
 
-HF_TOKEN = ***"HF_TOKEN", "")
+HF_TOKEN = os.environ.get("HF_TOKEN", "")
 
 # Пробуем модели по порядку:
 # 1. instruct-pix2pix (лучший для редактирования по инструкции)
@@ -34,7 +34,7 @@ MODELS = [
 async def edit_image_hf(image_bytes: bytes, prompt: str) -> bytes:
     """Отправить изображение + инструкцию на HF API и получить результат."""
     if not HF_TOKEN:
-        *** ValueError("HF_TOKEN не задан!")
+        raise ValueError("HF_TOKEN не задан!")
 
     # Конвертируем изображение в base64
     img_b64 = base64.b64encode(image_bytes).decode("utf-8")
