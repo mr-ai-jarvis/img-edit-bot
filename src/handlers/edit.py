@@ -5,7 +5,7 @@ import logging
 from telegram import Update
 from telegram.ext import ContextTypes, ConversationHandler
 
-from src.ai.hf_pix2pix import edit_image
+from src.ai.gemini_edit import edit_image
 
 logger = logging.getLogger(__name__)
 
