@@ -40,24 +40,27 @@ async def edit_image(image_url: str, prompt: str) -> bytes:
         "model": "google/gemini-2.5-flash-image",
         "input": {
             "prompt": prompt,
-            "images": [
-                {
-                    "type": "url",
-                    "data": image_url,
-                }
-            ],
+            "images": [image_url],
         },
     }
 
     logger.info(f"Polza.ai: sending to gemini-2.5-flash-image...")
 
     async with httpx.AsyncClient(timeout=30) as client:
-        # Отправляем запрос на генерацию
         response = await client.post(
             f"{POLZA_AI_BASE_URL}/media",
             headers=headers,
             json=payload,
         )
+
+        # Логируем ошибку если что-то пошло не так
+        if response.status_code != 200:
+            try:
+                error_body = response.json()
+                logger.error(f"Polza.ai error {response.status_code}: {error_body}")
+            except Exception:
+                logger.error(f"Polza.ai error {response.status_code}: {response.text[:500]}")
+
         response.raise_for_status()
         result = response.json()
 
@@ -66,11 +69,9 @@ async def edit_image(image_url: str, prompt: str) -> bytes:
 
         logger.info(f"Polza.ai: generation {media_id}, status={status}")
 
-        # Если результат уже готов
         if status == "completed":
             return await _get_media_result(client, headers, media_id)
 
-        # Если в обработке — поллим
         if status == "pending":
             return await _poll_media_result(client, headers, media_id)
 
