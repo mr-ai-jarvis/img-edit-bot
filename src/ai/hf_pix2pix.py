@@ -1,43 +1,38 @@
-"""Hugging Face Inference API — InstructPix2Pix / image-to-image.
+"""AI обработка изображений — несколько бесплатных API.
 
-Бесплатно: нужен HF_TOKEN (получить на huggingface.co/settings/tokens).
-
-Правильный формат API:
-POST /model
-{
-  "inputs": "<base64_image>",
-  "parameters": { "prompt": "edit instruction" }
-}
+Цепочка попыток:
+1. Hugging Face InstructPix2Pix (если доступен)
+2. Hugging Face через альтернативные эндпоинты
+3. Pollinations.ai — генерация по промпту (всегда работает)
 """
 
 import os
 import base64
-import io
+import json
 import logging
 import httpx
-import json
 
 logger = logging.getLogger(__name__)
 
 HF_TOKEN = os.environ.get("HF_TOKEN", "")
 
-# Пробуем модели по порядку:
-# 1. instruct-pix2pix (лучший для редактирования по инструкции)
-# 2. FLUX.1-Kontext-dev (мощная модель редактирования, если доступна)
-MODELS = [
+# Несколько эндпоинтов HF на случай, если какой-то не работает из Railway
+HF_ENDPOINTS = [
+    "https://api-inference.huggingface.co/models/{}",
+    "https://router.huggingface.co/hf-inference/models/{}",
+]
+
+# Модели для редактирования по порядку
+HF_MODELS = [
     "timbrooks/instruct-pix2pix",
     "black-forest-labs/FLUX.1-Kontext-dev",
-    "stabilityai/stable-diffusion-xl-refiner-1.0",
 ]
 
 
-async def edit_image_hf(image_bytes: bytes, prompt: str) -> bytes:
-    """Отправить изображение + инструкцию на HF API и получить результат."""
+async def _try_hf_endpoint(image_b64: str, prompt: str) -> bytes:
+    """Пробует все HF эндпоинты и модели."""
     if not HF_TOKEN:
-        raise ValueError("HF_TOKEN не задан!")
-
-    # Конвертируем изображение в base64
-    img_b64 = base64.b64encode(image_bytes).decode("utf-8")
+        raise ValueError("HF_TOKEN не задан")
 
     headers = {
         "Authorization": f"Bearer {HF_TOKEN}",
@@ -45,7 +40,7 @@ async def edit_image_hf(image_bytes: bytes, prompt: str) -> bytes:
     }
 
     payload = {
-        "inputs": img_b64,
+        "inputs": image_b64,
         "parameters": {
             "prompt": prompt,
             "guidance_scale": 7.5,
@@ -53,26 +48,48 @@ async def edit_image_hf(image_bytes: bytes, prompt: str) -> bytes:
         },
     }
 
-    # Пробуем каждую модель по порядку
-    last_error = None
-    for model in MODELS:
-        url = f"https://api-inference.huggingface.co/models/{model}"
+    for model in HF_MODELS:
+        for endpoint_template in HF_ENDPOINTS:
+            url = endpoint_template.format(model)
+            try:
+                async with httpx.AsyncClient(timeout=120) as client:
+                    response = await client.post(
+                        url, headers=headers, content=json.dumps(payload)
+                    )
+                    if response.status_code == 200:
+                        logger.info(f"✅ HF success: {url}")
+                        return response.content
+                    logger.warning(f"⚠️ HF {url}: {response.status_code}")
+            except Exception as e:
+                logger.warning(f"⚠️ HF {url}: {e}")
+                continue
+
+    raise Exception("Все HF эндпоинты не сработали")
+
+
+async def _try_pollinations_generate(prompt: str) -> bytes:
+    """Генерация через Pollinations.ai (без ключа)."""
+    import urllib.parse
+    encoded = urllib.parse.quote(prompt)
+    url = f"https://image.pollinations.ai/prompt/{encoded}?width=1024&height=1024&nologo=true"
+
+    async with httpx.AsyncClient(timeout=60) as client:
+        response = await client.get(url)
+        response.raise_for_status()
+        return response.content
+
+
+async def edit_image(image_bytes: bytes, prompt: str) -> bytes:
+    """Отредактировать изображение — цепочка бесплатных API."""
+    # Пытаемся через HF InstructPix2Pix (редактирует по-настоящему)
+    if HF_TOKEN:
+        img_b64 = base64.b64encode(image_bytes).decode("utf-8")
         try:
-            async with httpx.AsyncClient(timeout=120) as client:
-                response = await client.post(
-                    url, headers=headers, content=json.dumps(payload)
-                )
-
-                if response.status_code == 200:
-                    return response.content
-
-                error_text = response.text[:200]
-                logger.warning(f"HF model {model} error {response.status_code}: {error_text}")
-                last_error = f"{model}: {response.status_code}"
-
+            return await _try_hf_endpoint(img_b64, prompt)
         except Exception as e:
-            logger.warning(f"HF model {model} failed: {e}")
-            last_error = str(e)
-            continue
+            logger.warning(f"HF API all failed, fallback to Pollinations: {e}")
 
-    raise Exception(f"Все HF модели не сработали: {last_error}")
+    # Резерв: генерация на основе описания
+    logger.info("Using Pollinations.ai as fallback")
+    enhanced_prompt = f"реалистичное фото: {prompt}, профессиональное качество, детализированное"
+    return await _try_pollinations_generate(enhanced_prompt)

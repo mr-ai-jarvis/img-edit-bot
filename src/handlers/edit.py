@@ -5,8 +5,7 @@ import logging
 from telegram import Update
 from telegram.ext import ContextTypes, ConversationHandler
 
-from src.ai.hf_pix2pix import edit_image_hf
-from src.ai.pollinations import edit_image_pollinations
+from src.ai.hf_pix2pix import edit_image
 
 logger = logging.getLogger(__name__)
 
@@ -61,10 +60,7 @@ async def receive_prompt(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
         image_bytes.seek(0)
         raw_image = image_bytes.read()
 
-        try:
-            result_bytes = await edit_image_hf(raw_image, prompt)
-        except Exception:
-            result_bytes = await edit_image_pollinations(prompt)
+        result_bytes = await edit_image(raw_image, prompt)
 
         await msg.delete()
         await update.message.reply_photo(
