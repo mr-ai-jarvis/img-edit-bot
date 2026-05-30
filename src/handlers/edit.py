@@ -6,6 +6,7 @@ from telegram import Update
 from telegram.ext import ContextTypes, ConversationHandler
 
 from src.ai.gemini_edit import edit_image
+from src.web.health import save_temp_image, get_temp_url
 
 logger = logging.getLogger(__name__)
 
@@ -60,7 +61,11 @@ async def receive_prompt(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
         image_bytes.seek(0)
         raw_image = image_bytes.read()
 
-        result_bytes = await edit_image(raw_image, prompt)
+        # Сохраняем во временное хранилище для Pollinations Kontext
+        file_id = save_temp_image(raw_image)
+        image_url = get_temp_url(file_id)
+
+        result_bytes = await edit_image(raw_image, prompt, image_url=image_url)
 
         await msg.delete()
         await update.message.reply_photo(
