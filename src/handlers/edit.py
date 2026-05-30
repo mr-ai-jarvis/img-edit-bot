@@ -55,8 +55,11 @@ async def receive_prompt(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
     try:
         # Получаем прямую ссылку на файл через Telegram API
         file = await context.bot.get_file(file_id)
-        # Строим публичный URL (содержит bot_token, но Pollinations только скачивает по нему)
-        image_url = f"https://api.telegram.org/file/bot{context.bot.token}/{file.file_path}"
+        # В PTB v21+ file.file_path уже возвращает полный URL, в старых — только путь
+        if file.file_path.startswith("http"):
+            image_url = file.file_path
+        else:
+            image_url = f"https://api.telegram.org/file/bot{context.bot.token}/{file.file_path}"
 
         result_bytes = await edit_image(image_url, prompt)
 

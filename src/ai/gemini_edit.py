@@ -75,7 +75,7 @@ async def edit_image(image_url: str, prompt: str) -> bytes:
         if status == "completed":
             return await _get_media_result(client, headers, media_id)
 
-        if status == "pending":
+        if status in ("pending", "processing"):
             return await _poll_media_result(client, headers, media_id)
 
         raise ValueError(f"Неожиданный статус: {status}")
@@ -112,9 +112,13 @@ async def _poll_media_result(
     headers: dict,
     media_id: str,
     timeout: int = 120,
-    poll_interval: float = 2.0,
+    poll_interval: float = 3.0,
 ) -> bytes:
-    """Поллинг статуса генерации до завершения."""
+    """Поллинг статуса генерации до завершения.
+
+    Docs: https://polza.ai/docs/api-reference/media/status
+    Рекомендуемый интервал: 3-5 секунд для изображений.
+    """
     start = asyncio.get_event_loop().time()
     while True:
         elapsed = asyncio.get_event_loop().time() - start
@@ -138,32 +142,45 @@ async def _poll_media_result(
         elif status == "failed":
             error = result.get("error", "Неизвестная ошибка")
             raise RuntimeError(f"Генерация не удалась: {error}")
-        # "pending" — продолжаем ждать
+        # pending/processing — продолжаем ждать
 
 
 def _extract_image_url(result: dict) -> str | None:
-    """Извлечь URL изображения из ответа Media API."""
-    # Пробуем разные пути в ответе
+    """Извлечь URL изображения из ответа Media API.
+
+    Формат ответа (completed):
+    {
+      "status": "completed",
+      "data": {
+        "url": "https://s3.polza.ai/f/..."
+      },
+      "usage": { "cost_rub": 5.0 }
+    }
+    """
+    # Основной путь: data.url (согласно документации)
+    data = result.get("data")
+    if isinstance(data, dict):
+        url = data.get("url")
+        if url:
+            return url
+        # Некоторые модели возвращают массив в data
+        items = data.get("items")
+        if isinstance(items, list) and len(items) > 0:
+            if isinstance(items[0], dict):
+                url = items[0].get("url")
+                if url:
+                    return url
+
+    # Fallback: output.url (для обратной совместимости)
     output = result.get("output")
     if isinstance(output, dict):
         url = output.get("url")
         if url:
             return url
 
-    # Прямой путь
+    # Прямой путь (result.url)
     url = result.get("url")
     if url:
         return url
-
-    # Массив output
-    if isinstance(output, list) and len(output) > 0:
-        if isinstance(output[0], dict):
-            return output[0].get("url")
-
-    # data массив
-    data = result.get("data")
-    if isinstance(data, list) and len(data) > 0:
-        if isinstance(data[0], dict):
-            return data[0].get("url")
 
     return None
