@@ -1,12 +1,10 @@
 """Обработчик редактирования изображений — ConversationHandler."""
 
-import io
 import logging
 from telegram import Update
 from telegram.ext import ContextTypes, ConversationHandler
 
 from src.ai.gemini_edit import edit_image
-from src.web.health import save_temp_image, get_temp_url
 
 logger = logging.getLogger(__name__)
 
@@ -55,15 +53,10 @@ async def receive_prompt(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
     )
 
     try:
+        # Получаем прямую ссылку на файл через Telegram API
         file = await context.bot.get_file(file_id)
-        image_bytes = io.BytesIO()
-        await file.download_to_memory(image_bytes)
-        image_bytes.seek(0)
-        raw_image = image_bytes.read()
-
-        # Сохраняем во временное хранилище для Pollinations Kontext
-        temp_id = save_temp_image(raw_image)
-        image_url = get_temp_url(temp_id)
+        # Строим публичный URL (содержит bot_token, но Pollinations только скачивает по нему)
+        image_url = f"https://api.telegram.org/file/bot{context.bot.token}/{file.file_path}"
 
         result_bytes = await edit_image(image_url, prompt)
 
