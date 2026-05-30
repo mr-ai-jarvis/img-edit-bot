@@ -62,10 +62,10 @@ async def receive_prompt(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
         raw_image = image_bytes.read()
 
         # Сохраняем во временное хранилище для Pollinations Kontext
-        file_id = save_temp_image(raw_image)
-        image_url = get_temp_url(file_id)
+        temp_id = save_temp_image(raw_image)
+        image_url = get_temp_url(temp_id)
 
-        result_bytes = await edit_image(raw_image, prompt, image_url=image_url)
+        result_bytes = await edit_image(image_url, prompt)
 
         await msg.delete()
         await update.message.reply_photo(
